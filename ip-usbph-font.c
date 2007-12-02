@@ -76,7 +76,7 @@ static const ip_usbph_char font_char[256] = {
 	['B'] = _T | _TC | _TR | _RC | _BC |_BR | _B,
 	['C'] = _T |_L | _B,
 	['D'] = _T | _TC | _TR | _BC |_BR | _B,
-	['E'] = _T | _L | _LC | _B,
+	['E'] = _T | _L | _M | _B,
 	['F'] =	_T | _LC | _L,
 	['G'] = _T | _L | _B | _BR | _RC,
 	['H'] = _L | _M | _R,
@@ -96,46 +96,43 @@ static const ip_usbph_char font_char[256] = {
 	['V'] = _TLX | _BRX | _R,
 	['W'] = _L | _BLX | _BRX | _R,
 	['X'] = _TLX | _TRX | _BLX | _BRX,
-	['Y'] = _TLX | _TRX | _BC,
+	['Y'] = _TL | _M | _R | _B,
 	['Z'] = _T | _TRX | _BLX | _B,
 	['\\'] = _TLX | _BRX,
 	['^'] = _BLX | _BRX,
 	['_'] = _B,
-	['a'] = _T | _R | _BL | _M | _B,
+	['a'] = _L | _R | _T | _M,
 	['b'] = _L | _M | _B | _BR,
 	['c'] = _BL | _M | _B,
 	['d'] = _R | _M | _B | _BL,
-	['e'] = _T | _L | _BR | _B | _M,
+	['e'] = _L | _T | _B | _LC,
 	['f'] = _T | _L | _LC,
-	['g'] = _T | _TL | _R | _M | _B,
+	['g'] = _T | _TL | _R | _B | _M,
 	['h'] = _L | _M | _BR,
-	['i'] = _R,
+	['i'] = _BC,
 	['j'] = _R | _B | _BL,
 	['k'] = _TC | _BC | _TRX | _BRX,
-	['l'] = _L,
+	['l'] = _R,
 	['m'] = _BL | _M | _BC | _BR,
-	['n'] = _BL | _LC | _BC,
+	['n'] = _BL | _M | _BR,
 	['o'] = _BL | _M | _B | _BR,
-	['p'] = _TLX | _LC | _L,
-	['q'] = _TRX | _R | _RC,
-	['r'] = _BC | _RC,
-	['s'] = _T | _TLX | _BRX | _B,
-	['t'] = _M | _BC,
+	['p'] = _T | _L | _M | _TR,
+	['q'] = _T | _L | _B | _R | _BRX,
+	['r'] = _BC | _M,
+	['s'] = _T | _M | _B | _TL | _BR,
+	['t'] = _M | _BC | _TC,
 	['u'] = _BL | _B | _BR,
-	['v'] = _BRX | _BR,
-	['w'] = _BL | _BLX | _BRX | _BR,
+	['v'] = _BLX | _BL,
+	['w'] = _BL | _B | _BC | _BR,
 	['x'] = _M | _BLX | _BRX,
-	['y'] = _TL | _M | _R | _B,
-	['z'] = _T | _TRX | _BLX | _B,
+	['y'] = _TLX | _TRX | _BC,
+	['z'] =  _T | _TRX | _BLX | _B,
 	['|'] = _TC | _BC,
+	[255] = ~0,
 };
 
-ip_usbph_char ip_usbph_font_char(char c)
+ip_usbph_char ip_usbph_font_char(uint8_t c)
 {
-	if (c < 0 || c >= ARRAY_SIZE(font_char)) {
-		return 0;
-	}
-
 	return font_char[c];
 }
 
@@ -158,7 +155,7 @@ static ip_usbph_digit font_digit[16] = {
 	[0xf] =	_T | _M | _L,
 };
 
-ip_usbph_digit ip_usbph_font_digit(char c)
+ip_usbph_digit ip_usbph_font_digit(uint8_t  c)
 {
 	if (!isxdigit(c)) {
 		return 0;

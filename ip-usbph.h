@@ -94,8 +94,8 @@ typedef uint16_t ip_usbph_char;
 /* Get digit mask for characters 
  * Valid: 0-9, a-f, A-F 
  */
-ip_usbph_digit ip_usbph_font_digit(char c);
-ip_usbph_char  ip_usbph_font_char(char c);
+ip_usbph_digit ip_usbph_font_digit(uint8_t c);
+ip_usbph_char  ip_usbph_font_char(uint8_t c);
 
 struct ip_usbph *ip_usbph_acquire(int index);
 void ip_usbph_release(struct ip_usbph *ph);
@@ -106,6 +106,10 @@ int ip_usbph_raw(struct ip_usbph *ph, const uint8_t cmd[8]);
 
 int ip_usbph_symbol(struct ip_usbph *ph, ip_usbph_sym sym, int is_on);
 
+/*
+ * Valid indexes are from 0 to 10.
+ * Index 0 and 3 are 'forced ones'
+ */
 int ip_usbph_top_digit(struct ip_usbph *ph, int index, ip_usbph_digit digit);
 
 int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch);

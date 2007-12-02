@@ -331,4 +331,162 @@ int ip_usbph_top_digit(struct ip_usbph *ph, int index, ip_usbph_digit digit)
 	return 0;
 }
 
+/*
+ * SEG0 - B  / BC  / TC / T
+ * SEG1 - BR / BRX / RC / TRX / TR
+ * SEG2 - BL / BLX / LC / TLX / TL
+ */
+static const struct {
+	code_id code;
+	int bit;
+} top_char_seg[][3] = {
+	[0] = {
+		{ .code = CODE_C1_54, .bit = 17 },
+		{ .code = CODE_C1_54, .bit = 8 },
+		{ .code = CODE_C1_54, .bit = 24 },
+	},
+	[1] = {
+		{ .code = CODE_C1_4F, .bit = 33 },
+		{ .code = CODE_C1_4F, .bit = 24 },
+		{ .code = CODE_C1_54, .bit =  0 },
+	},
+	[2] = {
+		{ .code = CODE_C1_4F, .bit =  9 },
+		{ .code = CODE_C1_4F, .bit =  0 },
+		{ .code = CODE_C1_4F, .bit = 16 },
+	},
+	[3] = {
+		{ .code = CODE_C1_40, .bit =  9 },
+		{ .code = CODE_C1_40, .bit = 16 },
+		{ .code = CODE_C1_40, .bit =  0 },
+	},
+	[4] = {
+		{ .code = CODE_C1_40, .bit = 33 },
+		{ .code = CODE_C1_4A, .bit = 32 },
+		{ .code = CODE_C1_40, .bit = 24 },
+	},
+	[5] = {
+		{ .code = CODE_C1_4A, .bit = 25 },
+		{ .code = CODE_C1_4A, .bit = 16 },
+		{ .code = CODE_C1_45, .bit =  0 },
+	},
+	[6] = {
+		{ .code = CODE_C1_4A, .bit =  9 },
+		{ .code = CODE_C1_4A, .bit =  0 },
+		{ .code = CODE_C1_45, .bit =  8 },
+	},
+	[7] = {
+		{ .code = CODE_C1_45, .bit = 25 },
+		{ .code = CODE_C1_45, .bit = 16 },
+		{ .code = CODE_C1_45, .bit = 32 },
+	},
+};
+
+/*
+ * SEG0 - B  / BC  / TC / T
+ * SEG1 - BR / BRX / RC / TRX / TR
+ * SEG2 - BL / BLX / LC / TLX / TL
+ */
+static const struct {
+	ip_usbph_char mask;
+	int seg;
+	int bit;
+} top_seg_map[14] = {
+	{ .mask = IP_USBPH_SEG_B,   .seg = 0, .bit = 0 },
+	{ .mask = IP_USBPH_SEG_BC,  .seg = 0, .bit = 1 },
+	{ .mask = IP_USBPH_SEG_TC,  .seg = 0, .bit = 2 },
+	{ .mask = IP_USBPH_SEG_T,   .seg = 0, .bit = 3 },
+	{ .mask = IP_USBPH_SEG_BR,  .seg = 1, .bit = 0 },
+	{ .mask = IP_USBPH_SEG_BRX, .seg = 1, .bit = 1 },
+	{ .mask = IP_USBPH_SEG_RC,  .seg = 1, .bit = 2 },
+	{ .mask = IP_USBPH_SEG_TRX, .seg = 1, .bit = 3 },
+	{ .mask = IP_USBPH_SEG_TR,  .seg = 1, .bit = 4 },
+	{ .mask = IP_USBPH_SEG_BL,  .seg = 2, .bit = 0 },
+	{ .mask = IP_USBPH_SEG_BLX, .seg = 2, .bit = 1 },
+	{ .mask = IP_USBPH_SEG_LC,  .seg = 2, .bit = 2 },
+	{ .mask = IP_USBPH_SEG_TLX, .seg = 2, .bit = 3 },
+	{ .mask = IP_USBPH_SEG_TL,  .seg = 2, .bit = 4 },
+};
+
+int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
+{
+	int i;
+
+	if (ch & IP_USBPH_SEG_M) {
+		ch |= IP_USBPH_SEG_RC | IP_USBPH_SEG_LC;
+	}
+
+	for (i = 0; i < 14; i++) {
+		code_bit(top_char_seg[index][top_seg_map[i].seg].code,
+			 top_char_seg[index][top_seg_map[i].seg].bit +
+			   top_seg_map[i].bit, top_seg_map[i].mask & ch);
+	}
+
+	return 0;
+}
+
+/*
+ * SEG0 - T  / TL  / TLX / LC / BC  / BLX / BL
+ * SEG1 - TR / TRX / TC  / RC / BRC / BR  / B
+ */
+static const struct {
+	ip_usbph_char mask;
+	int seg;
+	int bit;
+} bot_seg_map[14] = {
+	{ .mask = IP_USBPH_SEG_T,   .seg = 0, .bit = 0 },
+	{ .mask = IP_USBPH_SEG_TL,  .seg = 0, .bit = 1 },
+	{ .mask = IP_USBPH_SEG_TLX, .seg = 0, .bit = 2 },
+	{ .mask = IP_USBPH_SEG_LC,  .seg = 0, .bit = 3 },
+	{ .mask = IP_USBPH_SEG_BC,  .seg = 0, .bit = 4 },
+	{ .mask = IP_USBPH_SEG_BLX, .seg = 0, .bit = 5 },
+	{ .mask = IP_USBPH_SEG_BL,  .seg = 0, .bit = 6 },
+	{ .mask = IP_USBPH_SEG_TR,  .seg = 1, .bit = 0 },
+	{ .mask = IP_USBPH_SEG_TRX, .seg = 1, .bit = 1 },
+	{ .mask = IP_USBPH_SEG_TC,  .seg = 1, .bit = 2 },
+	{ .mask = IP_USBPH_SEG_RC,  .seg = 1, .bit = 3 },
+	{ .mask = IP_USBPH_SEG_BRX, .seg = 1, .bit = 4 },
+	{ .mask = IP_USBPH_SEG_BR,  .seg = 1, .bit = 5 },
+	{ .mask = IP_USBPH_SEG_B,   .seg = 1, .bit = 6 },
+};
+
+static const struct {
+	code_id code;
+	int bit;
+} bot_char_seg[][2] = {
+	[0] = {
+		{ .code = CODE_C1_54, .bit = 32 },
+		{ .code = CODE_C1_59, .bit =  0 },
+	},
+	[1] = {
+		{ .code = CODE_C1_59, .bit =  8 },
+		{ .code = CODE_C1_59, .bit = 16 },
+	},
+	[2] = {
+		{ .code = CODE_C1_59, .bit = 24 },
+		{ .code = CODE_C1_59, .bit = 32 },
+	},
+	[3] = {
+		{ .code = CODE_61_5E, .bit =  0 },
+		{ .code = CODE_61_5E, .bit =  8 },
+	},
+};
+
+int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
+{
+	int i;
+
+	if (ch & IP_USBPH_SEG_M) {
+		ch |= IP_USBPH_SEG_RC | IP_USBPH_SEG_LC;
+	}
+
+	for (i = 0; i < 14; i++) {
+		code_bit(bot_char_seg[index][bot_seg_map[i].seg].code,
+			 bot_char_seg[index][bot_seg_map[i].seg].bit +
+			   bot_seg_map[i].bit, bot_seg_map[i].mask & ch);
+	}
+
+	return 0;
+}
+
 

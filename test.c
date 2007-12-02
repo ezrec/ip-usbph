@@ -49,8 +49,46 @@ void digit_test(struct ip_usbph *ph)
 	ip_usbph_top_digit(ph, 8, ip_usbph_font_digit('8'));
 	ip_usbph_top_digit(ph, 9, ip_usbph_font_digit('8'));
 	ip_usbph_top_digit(ph, 10, ip_usbph_font_digit('8'));
+
 	ip_usbph_flush(ph);
 }
+
+void top_char_test(struct ip_usbph *ph)
+{
+	int i;
+
+	/* Char 255 test */
+	for (i = 0; i < 8; i++) {
+		ip_usbph_top_char(ph, i, ip_usbph_font_char(255));
+	}
+	ip_usbph_flush(ph);
+
+	sleep(1);
+
+	for (i = 0; i < 8; i++) {
+		ip_usbph_top_char(ph, i, ip_usbph_font_char(i + 'A'));
+	}
+	ip_usbph_flush(ph);
+}
+
+void bot_char_test(struct ip_usbph *ph)
+{
+	int i;
+
+	/* Char 255 test */
+	for (i = 0; i < 4; i++) {
+		ip_usbph_bot_char(ph, i, ip_usbph_font_char(255));
+	}
+	ip_usbph_flush(ph);
+
+	sleep(1);
+
+	for (i = 0; i < 4; i++) {
+		ip_usbph_bot_char(ph, i, ip_usbph_font_char(i + 'a'));
+	}
+	ip_usbph_flush(ph);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -70,7 +108,11 @@ int main(int argc, char **argv)
 
 	digit_test(ph);
 
-#if 1
+	top_char_test(ph);
+
+	bot_char_test(ph);
+
+#if 0
 	while (fgets(buff, sizeof(buff)-1, stdin) != NULL) {
 		char *cp, *next;
 		int i;
@@ -100,7 +142,25 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	sleep(1000);
+	while (fgets(buff, sizeof(buff)-1, stdin) != NULL) {
+		int i;
+
+		for (i = 0; i < 8 && buff[i] != 0; i++) {
+			ip_usbph_top_char(ph, i, ip_usbph_font_char(buff[i]));
+		}
+
+		if (buff[i] == 0) {
+			ip_usbph_flush(ph);
+			continue;
+		}
+
+		for (i = 0; i < 4 && buff[i+8] != 0; i++) {
+			ip_usbph_bot_char(ph, i, ip_usbph_font_char(buff[i+8]));
+		}
+
+		ip_usbph_flush(ph);
+	}
+
 
 	ip_usbph_release(ph);
 
