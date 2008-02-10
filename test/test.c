@@ -8,9 +8,32 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <poll.h>
 
 #include "ip-usbph.h"
 
+const char *keymap[0x20] = {
+	[IP_USBPH_KEY_0] = "0",
+	[IP_USBPH_KEY_1] = "1",
+	[IP_USBPH_KEY_2] = "2",
+	[IP_USBPH_KEY_3] = "3",
+	[IP_USBPH_KEY_4] = "4",
+	[IP_USBPH_KEY_5] = "5",
+	[IP_USBPH_KEY_6] = "6",
+	[IP_USBPH_KEY_7] = "7",
+	[IP_USBPH_KEY_8] = "8",
+	[IP_USBPH_KEY_9] = "9",
+	[IP_USBPH_KEY_YES] = "YES",
+	[IP_USBPH_KEY_NO] = "NO",
+	[IP_USBPH_KEY_VOL_UP] = "VOL+",
+	[IP_USBPH_KEY_VOL_DOWN] = "VOL-",
+	[IP_USBPH_KEY_UP] = "UP",
+	[IP_USBPH_KEY_DOWN] = "DOWN",
+	[IP_USBPH_KEY_S] = "S",
+	[IP_USBPH_KEY_C] = "C",
+	[IP_USBPH_KEY_ASTERISK] = "*",
+	[IP_USBPH_KEY_HASH] = "#",
+};
 void symbol_test(struct ip_usbph *ph)
 {
 	ip_usbph_symbol(ph, IP_USBPH_SYMBOL_DOWN, 1);
@@ -96,6 +119,7 @@ int main(int argc, char **argv)
 	char buff[1024];
 	uint8_t cmd[8] = { 0 };
 	uint64_t shifty = 0;
+	int fd, err;
 
 	ph = ip_usbph_acquire(0);
 	assert(ph != NULL);
@@ -112,55 +136,45 @@ int main(int argc, char **argv)
 
 	bot_char_test(ph);
 
-#if 0
-	while (fgets(buff, sizeof(buff)-1, stdin) != NULL) {
-		char *cp, *next;
-		int i;
-		unsigned long v;
+	fd = ip_usbph_key_fd(ph);
+	if (fd < 0) {
+		printf("Could not talk to the phone's keypad. Skipping keypad test.\n");
+	} else {
+		struct pollfd fds[1] = {
+			{ .fd = fd, .events = POLLIN | POLLERR }
+		};
+		int zeros = 0;
 
-		i = 0;
-		next = buff;
-		do {
-			cp = next;
-			v = strtoul(cp, &next, 16);
-			if (cp != next) {
-				shifty = 1;
-				cmd[i++] = v;
+		printf("Press some keys. Press \"000\" to exit.\n");
+
+		while ((err = poll(fds, 1, -1)) == 1) {
+			uint16_t key;
+
+			if (fds[0].revents & POLLERR) {
+				break;
 			}
-		} while (i < 8 && cp != next);
 
-		ip_usbph_raw(ph, cmd);
+			key = ip_usbph_key_get(ph);
+			if (key == IP_USBPH_KEY_INVALID) {
+				printf("Crap. We broke the keypad support.\n");
+				break;
+			}
 
-		for (i = 3; i < 8; i++) {
-			cmd[i] = (~(shifty) >> ((i - 3)*8)) & 0xff;
+			printf("Key: %s (%s)\n", keymap[key & 0x1f], (key & IP_USBPH_KEY_PRESSED) ? "Down" : "Up");
+
+			if ((key & IP_USBPH_KEY_PRESSED) == 0) {
+				if (key == IP_USBPH_KEY_0) {
+					zeros++;
+				} else {
+					zeros = 0;
+				}
+			}
+
+			if (zeros == 3) {
+				break;
+			}
 		}
-		for (i = 0; i < 8; i++) {
-			printf("%02X%s", cmd[i], i==7 ? "] " : " ");
-		}
-		shifty <<= 1;
-		fflush(stdout);
 	}
-#endif
-
-	while (fgets(buff, sizeof(buff)-1, stdin) != NULL) {
-		int i;
-
-		for (i = 0; i < 8 && buff[i] != 0; i++) {
-			ip_usbph_top_char(ph, i, ip_usbph_font_char(buff[i]));
-		}
-
-		if (buff[i] == 0) {
-			ip_usbph_flush(ph);
-			continue;
-		}
-
-		for (i = 0; i < 4 && buff[i+8] != 0; i++) {
-			ip_usbph_bot_char(ph, i, ip_usbph_font_char(buff[i+8]));
-		}
-
-		ip_usbph_flush(ph);
-	}
-
 
 	ip_usbph_release(ph);
 

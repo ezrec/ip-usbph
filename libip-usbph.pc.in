@@ -1,0 +1,5 @@
+Name: @PACKAGE_STRING@
+Description: Holtek Semiconductor based VoIP phone support library
+URL: http://www.evillabs.net/wiki/index.php/Project_ip-usbph
+Version: @PACKAGE_VERSION@
+Requires: libusb

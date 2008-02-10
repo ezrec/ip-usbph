@@ -116,4 +116,40 @@ int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch);
 
 int ip_usbph_flush(struct ip_usbph *ph);
 
+/* Keycodes */
+
+#define IP_USBPH_KEY_INVALID	(0)
+#define IP_USBPH_KEY_PRESSED	(1 << 15)
+
+#define IP_USBPH_KEY_1		0x01
+#define IP_USBPH_KEY_2		0x02
+#define IP_USBPH_KEY_3		0x03
+#define IP_USBPH_KEY_VOL_UP	0x04
+#define IP_USBPH_KEY_4		0x05
+#define IP_USBPH_KEY_5		0x06
+#define IP_USBPH_KEY_6		0x07
+#define IP_USBPH_KEY_7		0x09
+#define IP_USBPH_KEY_VOL_DOWN	0x08
+#define IP_USBPH_KEY_8		0x0a
+#define IP_USBPH_KEY_9		0x0b
+#define IP_USBPH_KEY_ASTERISK	0x0c
+#define IP_USBPH_KEY_0		0x0e
+#define IP_USBPH_KEY_HASH	0x0f
+#define IP_USBPH_KEY_S		0x10
+#define IP_USBPH_KEY_UP		0x11
+#define IP_USBPH_KEY_DOWN	0x12
+#define IP_USBPH_KEY_NO		0x13
+#define IP_USBPH_KEY_YES	0x14
+#define IP_USBPH_KEY_C		0x15
+
+/*
+ * Get the file descriptor to poll for
+ * this phone device.
+ */
+int ip_usbph_key_fd(struct ip_usbph *ph);
+
+/* Get keycode and is-up mask for a key.
+ */
+uint16_t ip_usbph_key_get(struct ip_usbph *ph);
+
 #endif /* IP_USBPH_H */

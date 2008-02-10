@@ -10,12 +10,17 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <usb.h>
+#include <signal.h>
 
 #include "ip-usbph.h"
 
 struct ip_usbph {
 	usb_dev_handle *usb;
+	int key_pipe[2];
+	pid_t key_pid;
 };
 
 typedef enum {
@@ -38,6 +43,46 @@ static uint8_t code_set[7][8] = {
 	{ 0x02, 0xC1, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00, },
 	{ 0x02, 0x61, 0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, },
 };
+
+static pid_t key_monitor(struct ip_usbph *ph)
+{
+	pid_t pid;
+	int len;
+
+	pipe(ph->key_pipe);
+
+	pid = fork();
+	if (pid != 0) {
+		ph->key_pid = pid;
+		return;
+	}
+
+	/* In forked task */
+	for (;;) {
+		int len;
+		uint8_t report[8];
+		
+		len = usb_interrupt_read(ph->usb, 0x81, report, sizeof(report), 100000000);
+		if (len < 0 || len != sizeof(report)) {
+			if (len == -EAGAIN) {
+				continue;
+			}
+			exit(1);
+		}
+
+		if (report[0] != 0x02 ||
+		    report[1] != 0x61 ||
+		    report[2] != 0x90) {
+		    	/* Skip over non-key reports */
+		    	continue;
+		}
+
+		len = write(ph->key_pipe[1], &report[3], 1);
+		if (len != 1) {
+			exit(0);
+		}
+	}
+}
 
 struct ip_usbph *ip_usbph_acquire(int index)
 {
@@ -69,8 +114,7 @@ struct ip_usbph *ip_usbph_acquire(int index)
 					continue;
 				}
 				if (index <= 0) {
-					err = usb_reset(usb);
-					err = usb_set_configuration(usb, 1);
+					err = usb_clear_halt(usb, 3);
 					err = usb_detach_kernel_driver_np(usb, 3);
 					err = usb_claim_interface(usb, 3);
 					if (err < 0) {
@@ -80,6 +124,7 @@ struct ip_usbph *ip_usbph_acquire(int index)
 					ph = calloc(1, sizeof(*ph));
 					assert(ph != NULL);
 					ph->usb = usb;
+					key_monitor(ph);
 					return ph;
 				}
 				index--;
@@ -95,6 +140,7 @@ void ip_usbph_release(struct ip_usbph *ph)
 	assert(ph != NULL);
 	assert(ph->usb != NULL);
 
+	kill(ph->key_pid, SIGTERM);
 	usb_reset(ph->usb);
 	usb_close(ph->usb);
 	free(ph);
@@ -489,4 +535,30 @@ int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
 	return 0;
 }
 
+int ip_usbph_key_fd(struct ip_usbph *ph)
+{
+	return ph->key_pipe[0];
+}
 
+#define IP_USBPH_KEYCODE        	0x1f
+#define IP_USBPH_KEYCODE_PRESSED	0x20
+
+uint16_t ip_usbph_key_get(struct ip_usbph *ph)
+{
+	uint8_t code;
+	uint16_t key;
+	int err;
+
+	err = read(ph->key_pipe[0], &code, 1);
+	if (err != 1) {
+		return IP_USBPH_KEY_INVALID;
+	}
+
+	key = code & IP_USBPH_KEYCODE;
+	if (code & IP_USBPH_KEYCODE_PRESSED) {
+		key |= IP_USBPH_KEY_PRESSED;
+	}
+
+	return key;
+}
+	
