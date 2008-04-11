@@ -17,10 +17,14 @@
 
 #include "ip-usbph.h"
 
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
 struct ip_usbph {
 	usb_dev_handle *usb;
 	int key_pipe[2];
 	pid_t key_pid;
+	unsigned code_mask;
+	uint8_t code_set[7][8];
 };
 
 typedef enum {
@@ -34,7 +38,7 @@ typedef enum {
 	CODE_MAX,
 } code_id;
 
-static uint8_t code_set[7][8] = {
+static const uint8_t code_set[7][8] = {
 	{ 0x02, 0xC1, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, },
 	{ 0x02, 0xC1, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, },
 	{ 0x02, 0xC1, 0x4A, 0x00, 0x00, 0x00, 0x00, 0x00, },
@@ -124,6 +128,7 @@ struct ip_usbph *ip_usbph_acquire(int index)
 					ph = calloc(1, sizeof(*ph));
 					assert(ph != NULL);
 					ph->usb = usb;
+					memcpy(ph->code_set, code_set, sizeof(code_set));
 					key_monitor(ph);
 					return ph;
 				}
@@ -141,12 +146,11 @@ void ip_usbph_release(struct ip_usbph *ph)
 	assert(ph->usb != NULL);
 
 	kill(ph->key_pid, SIGTERM);
-	usb_reset(ph->usb);
 	usb_close(ph->usb);
 	free(ph);
 }
 
-int ip_usbph_raw(struct ip_usbph *ph, const uint8_t cmd[8])
+static int ip_usbph_raw(struct ip_usbph *ph, const uint8_t cmd[8])
 {
 	int err;
 	err = usb_control_msg(ph->usb, 
@@ -154,7 +158,7 @@ int ip_usbph_raw(struct ip_usbph *ph, const uint8_t cmd[8])
 	                      USB_REQ_SET_CONFIGURATION,
 	                      0x202,
 	                      0x03,
-	                      cmd, 8, 0);
+	                      (uint8_t *)cmd, 8, 0);
 
 	return (err < 0) ? err : 0;
 }
@@ -166,6 +170,51 @@ int ip_usbph_init(struct ip_usbph *ph)
 	return ip_usbph_raw(ph, init);
 }
 
+/* Save state to a fd
+ *
+ * Returns length written
+ */
+int ip_usbph_state_save(struct ip_usbph *ph, int fd)
+{
+	FILE *ouf = fdopen(dup(fd), "w");
+	int i, j;
+
+	if (ouf == NULL) {
+		return -ENXIO;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ph->code_set); i++) {
+		for (j = 0; j < ARRAY_SIZE(ph->code_set[i]); j++) {
+			fprintf(ouf, "0x%.2x%c", ph->code_set[i][j], (j == (ARRAY_SIZE(ph->code_set[i])-1)) ? '\n' : ' ');
+		}
+	}
+
+	fclose(ouf);
+	return 5 * ARRAY_SIZE(ph->code_set) * ARRAY_SIZE(ph->code_set[0]);
+}
+
+/* Restore state from a fd
+ */
+int ip_usbph_state_load(struct ip_usbph *ph, int fd)
+{
+	FILE *ouf = fdopen(dup(fd), "r");
+	int i, j;
+
+	if (ouf == NULL) {
+		return -ENXIO;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(ph->code_set); i++) {
+		for (j = 0; j < ARRAY_SIZE(ph->code_set[i]); j++) {
+			fscanf(ouf, " 0x%hhx", &ph->code_set[i][j]);
+		}
+	}
+
+	fclose(ouf);
+	return 5 * ARRAY_SIZE(ph->code_set) * ARRAY_SIZE(ph->code_set[0]);
+}
+
+
 int ip_usbph_backlight(struct ip_usbph *ph)
 {
 	const uint8_t backlight_on_7_sec[8] = { 0x02, 0x64, 0x12, 0x01, 0xFD, 0x00, 0x00, 0x00 };
@@ -176,9 +225,9 @@ int ip_usbph_clear(struct ip_usbph *ph)
 {
 	int i;
 
-	for (i = 0; i < 7; i++) {
-		memset(&code_set[i][3], 0, 5);
-		ip_usbph_raw(ph, &code_set[i][0]);
+	for (i = 0; i < ARRAY_SIZE(ph->code_set); i++) {
+		memset(&ph->code_set[i][3], 0, 5);
+		ip_usbph_raw(ph, &ph->code_set[i][0]);
 	}
 }
 
@@ -207,9 +256,7 @@ static const struct {
 	[IP_USBPH_SYMBOL_DECIMAL]={.code = CODE_61_5E, .bit =  7 },
 };
 
-static unsigned code_mask;
-
-static inline int code_bit(code_id code, int bit, int is_on)
+static inline int code_bit(struct ip_usbph *ph, code_id code, int bit, int is_on)
 {
 	uint8_t *cmd;
 
@@ -217,7 +264,7 @@ static inline int code_bit(code_id code, int bit, int is_on)
 		return -EINVAL;
 	}
 
-	cmd = &code_set[code-1][0];
+	cmd = &ph->code_set[code-1][0];
 
 	if (is_on) {
 		cmd[3 + (bit/8)] |= 1 << (bit % 8);
@@ -225,7 +272,7 @@ static inline int code_bit(code_id code, int bit, int is_on)
 		cmd[3 + (bit/8)] &= ~(1 << (bit % 8));
 	}
 
-	code_mask |= (1 << (code-1));
+	ph->code_mask |= (1 << (code-1));
 
 	return 0;
 }
@@ -236,19 +283,19 @@ int ip_usbph_flush(struct ip_usbph *ph)
 	int err = 0;
 
 	for (i = 0; i < CODE_MAX && err == 0; i++) {
-		if (code_mask & (1 << i)) {
-			err = ip_usbph_raw(ph, &code_set[i][0]);
+		if (ph->code_mask & (1 << i)) {
+			err = ip_usbph_raw(ph, &ph->code_set[i][0]);
 		}
 	}
 
-	code_mask = 0;
+	ph->code_mask = 0;
 
 	return err;
 }
 
 int ip_usbph_symbol(struct ip_usbph *ph, ip_usbph_sym sym, int is_on)
 {
-	return code_bit(font_symbol[sym].code, font_symbol[sym].bit, is_on);
+	return code_bit(ph, font_symbol[sym].code, font_symbol[sym].bit, is_on);
 }
 
 #define SEG_T	0
@@ -355,19 +402,20 @@ static const struct {
 
 int ip_usbph_top_digit(struct ip_usbph *ph, int index, ip_usbph_digit digit)
 {
-	int code_mask = 0;
 	int i;
 
 	if (index != 0 && index != 3) {
 		for (i = 0; i < 7; i++) {
-			code_bit(xref_digit_segment[index][i].code,
+			code_bit(ph,
+				 xref_digit_segment[index][i].code,
 			         xref_digit_segment[index][i].bit,
 			         digit & (1 << i));
 		}
 	} else if (index >= 0 && index < 11) {
 		i = 7;
 
-		code_bit(xref_digit_segment[index][i].code,
+		code_bit(ph,
+			 xref_digit_segment[index][i].code,
 		         xref_digit_segment[index][i].bit,
 		         digit & (1 << i));
 	} else {
@@ -463,7 +511,8 @@ int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
 	}
 
 	for (i = 0; i < 14; i++) {
-		code_bit(top_char_seg[index][top_seg_map[i].seg].code,
+		code_bit(ph,
+			 top_char_seg[index][top_seg_map[i].seg].code,
 			 top_char_seg[index][top_seg_map[i].seg].bit +
 			   top_seg_map[i].bit, top_seg_map[i].mask & ch);
 	}
@@ -527,7 +576,8 @@ int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
 	}
 
 	for (i = 0; i < 14; i++) {
-		code_bit(bot_char_seg[index][bot_seg_map[i].seg].code,
+		code_bit(ph,
+			 bot_char_seg[index][bot_seg_map[i].seg].code,
 			 bot_char_seg[index][bot_seg_map[i].seg].bit +
 			   bot_seg_map[i].bit, bot_seg_map[i].mask & ch);
 	}
