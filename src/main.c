@@ -260,11 +260,14 @@ static int cmd_key(struct ip_usbph *ph, int argc, char **argv)
 
 		if ((key & IP_USBPH_KEY_PRESSED) != 0) {
 			printf("%s\n", keymap[key & 0x1f]);
+			fflush(stdout);
 			return 0;
 		}
 	}
 
-	return -ETIMEDOUT;
+	printf("\n");
+	fflush(stdout);
+	return 0;
 }
 
 static int cmd_clear(struct ip_usbph *ph, int argc, char **argv)
