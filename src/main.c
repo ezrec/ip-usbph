@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <limits.h>
 
+#include "argv.h"
 #include "ip-usbph.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
@@ -243,6 +244,7 @@ static int cmd_key(struct ip_usbph *ph, int argc, char **argv)
 
 	fds[0].fd = fd;
 	fds[0].events = POLLIN | POLLERR;
+	fds[0].revents = 0;
 
 	while ((err = poll(fds, 1, timeout)) == 1) {
 		uint16_t key;
@@ -309,41 +311,14 @@ static void usage(const char *prog)
 	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
 		fprintf(stderr, "%s\n", cmds[i].help);
 	}
-
-	exit(EXIT_FAILURE);
+	fprintf(stderr, "shell                     Shell mode\n");
+	fprintf(stderr, "pipe                      Pipe mode\n");
 }
 
-
-int main(int argc, char **argv)
+static void rc_load(struct ip_usbph *ph)
 {
-	struct ip_usbph *ph;
-	int (*cmd)(struct ip_usbph *ph, int argc, char **argv) = NULL;
-	int err, i, fd;
 	char rcfile[PATH_MAX];
-	char rcfile_new[PATH_MAX];
-
-	if (argc < 2) {
-		usage(argv[0]);
-	}
-	
-	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
-		if (strcmp(argv[1],cmds[i].name) == 0) {
-			cmd = cmds[i].cmd;
-			break;
-		}
-	}
-
-	if (cmd == NULL) {
-		usage(argv[0]);
-	}
-
-	ph = ip_usbph_acquire(0);
-	if (ph == NULL) {
-		fprintf(stderr, "Can't find the IP-USBPH device. Ist it plugged in?\n");
-		exit(EXIT_FAILURE);
-	}
-
-	ip_usbph_init(ph);
+	int fd;
 
 	snprintf(rcfile, sizeof(rcfile), "%s/.ip-usbphrc", getenv("HOME"));
 	fd = open(rcfile, O_RDONLY);
@@ -351,8 +326,57 @@ int main(int argc, char **argv)
 		ip_usbph_state_load(ph, fd);
 		close(fd);
 	}
+}
 
-	err = cmd(ph, argc-1, argv+1);
+static void rc_save(struct ip_usbph *ph)
+{
+	char rcfile[PATH_MAX];
+	char rcfile_new[PATH_MAX];
+	int fd;
+
+	snprintf(rcfile, sizeof(rcfile_new), "%s/.ip-usbphrc", getenv("HOME"));
+	snprintf(rcfile_new, sizeof(rcfile_new), "%s/.ip-usbphrc~", getenv("HOME"));
+	rename(rcfile, rcfile_new);
+	fd = open(rcfile, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (fd < 0) {
+		rename(rcfile_new, rcfile);
+	} else {
+		ip_usbph_state_save(ph, fd);
+		close(fd);
+	}
+}
+
+static int command(struct ip_usbph **pph, int argc, char **argv)
+{
+	int i, err;
+	struct ip_usbph *ph = *pph;
+	int (*cmd)(struct ip_usbph *ph, int argc, char **argv) = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
+		if (strcmp(argv[0],cmds[i].name) == 0) {
+			cmd = cmds[i].cmd;
+			break;
+		}
+	}
+
+	if (cmd == NULL) {
+		usage(argv[0]);
+		return 0;
+	}
+
+	if (ph == NULL) {
+		ph = ip_usbph_acquire(0);
+		if (ph == NULL) {
+			fprintf(stderr, "Can't find the IP-USBPH device. Is it plugged in?\n");
+			exit(EXIT_FAILURE);
+		}
+		*pph = ph;
+
+		ip_usbph_init(ph);
+		rc_load(ph);
+	}
+
+	err = cmd(ph, argc, argv);
 	if (err < 0) {
 		if (err == -ETIMEDOUT) {
 			/* Do nothing */
@@ -366,17 +390,58 @@ int main(int argc, char **argv)
 		}
 	}
 
-	snprintf(rcfile_new, sizeof(rcfile_new), "%s/.ip-usbphrc~", getenv("HOME"));
-	rename(rcfile, rcfile_new);
-	fd = open(rcfile, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-	if (fd < 0) {
-		rename(rcfile_new, rcfile);
-	} else {
-		ip_usbph_state_save(ph, fd);
-		close(fd);
+	return err;
+}
+
+int main(int argc, char **argv)
+{
+	struct ip_usbph *ph;
+	int err;
+
+	if (argc < 2) {
+		usage(argv[0]);
 	}
 
-	ip_usbph_release(ph);
+	if (argc == 2 && (strcmp(argv[1], "shell") == 0 || strcmp(argv[1], "pipe") == 0)) {
+		int pipe_mode = (strcmp(argv[1], "pipe") == 0);
+
+		for (;;) {
+			char buff[256];
+
+			if (! pipe_mode) {
+				printf("ip-usbph> ");
+			};
+			buff[0] = 0;
+			fgets(buff, sizeof(buff), stdin);
+			if (buff[0] == 0) {
+				return EXIT_SUCCESS;
+			}
+
+			err = argv_from(buff, &argc, &argv);
+			if (err < 0) {
+				return EXIT_FAILURE;
+			}
+	
+			if (argc == 0 || strcmp(argv[0], "exit") == 0) {
+				return EXIT_SUCCESS;
+			}
+
+			err = command(&ph, argc, argv);
+			if (err < 0) {
+				fprintf(stderr, "%s\n", strerror(-err));
+			}
+			argv_free(argc, argv);
+		}
+	} else {
+		err = command(&ph, argc-1, &argv[1]);
+	}
+
+	if (ph != NULL) {
+		rc_save(ph);
+		ip_usbph_release(ph);
+	}
 
 	return (err == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+

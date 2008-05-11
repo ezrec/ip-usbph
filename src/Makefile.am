@@ -13,5 +13,5 @@ libip_usbph_la_SOURCES = \
 libip_usbph_la_CFLAGS = $(IP_USBPH_CFLAGS)
 libip_usbph_la_LIBADD = $(IP_USBPH_LIBS)
 
-ip_usbph_SOURCES = main.c
+ip_usbph_SOURCES = main.c argv.c argv.h
 ip_usbph_LDADD = libip-usbph.la
