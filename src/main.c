@@ -398,7 +398,7 @@ static int command(struct ip_usbph **pph, int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	struct ip_usbph *ph;
+	struct ip_usbph *ph = NULL;
 	int err;
 
 	if (argc < 2) {
