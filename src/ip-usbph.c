@@ -15,6 +15,8 @@
 #include <usb.h>
 #include <signal.h>
 
+#include <sys/wait.h>
+
 #include "ip-usbph.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
@@ -66,12 +68,12 @@ static pid_t key_monitor(struct ip_usbph *ph)
 		int len;
 		uint8_t report[8];
 		
-		len = usb_interrupt_read(ph->usb, 0x81, report, sizeof(report), 100000000);
+		len = usb_interrupt_read(ph->usb, 0x81, report, sizeof(report), 0);
 		if (len < 0 || len != sizeof(report)) {
 			if (len == -EAGAIN) {
 				continue;
 			}
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		if (report[0] != 0x02 ||
@@ -83,7 +85,8 @@ static pid_t key_monitor(struct ip_usbph *ph)
 
 		len = write(ph->key_pipe[1], &report[3], 1);
 		if (len != 1) {
-			exit(0);
+			fprintf(stderr,"ip-usbph: Key monitor got back %d writing to the pipe (%s).\n", len, strerror(errno));
+			exit(EXIT_FAILURE);
 		}
 	}
 }
@@ -597,7 +600,15 @@ uint16_t ip_usbph_key_get(struct ip_usbph *ph)
 {
 	uint8_t code;
 	uint16_t key;
+	int status;
 	int err;
+
+	if (waitpid(ph->key_pid, &status, WNOHANG) == ph->key_pid) {
+		if (WIFEXITED(status) || WIFSIGNALED(status)) {
+			fprintf(stderr, "ip-usbph: Key monitor killed.\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	err = read(ph->key_pipe[0], &code, 1);
 	if (err != 1) {
