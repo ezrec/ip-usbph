@@ -410,13 +410,14 @@ int main(int argc, char **argv)
 
 		for (;;) {
 			char buff[256];
+			char *s;
 
 			if (! pipe_mode) {
 				printf("ip-usbph> ");
 			};
 			buff[0] = 0;
-			fgets(buff, sizeof(buff), stdin);
-			if (buff[0] == 0) {
+			s = fgets(buff, sizeof(buff), stdin);
+			if (s == NULL || buff[0] == 0) {
 				return EXIT_SUCCESS;
 			}
 
