@@ -1,0 +1,31 @@
+This wired USB phone is based off of a Holtek Semiconductor MCU, and is
+recognized in Linux as a "GoodCom WJT602" USB audio device, with a HID input
+device:
+
+[45395.505831] input: GoodCom WJT602 USB Audio Device as /devices/pci0000:00/0000:00:1d.0/usb1/1-2/1-2:1.3/input/input23
+[45395.560226] input,hiddev96,hidraw0: USB HID v1.10 Device [GoodCom WJT602 USB Audio Device] on usb-0000:00:1d.0-2
+
+lsusb reports this device as:
+
+$ lsusb -d 04d9:0602
+Bus 001 Device 004: ID 04d9:0602 Holtek Semiconductor, Inc. 
+$
+
+What does libip-usbph do?
+-------------------------
+
+The library has APIs for the following:
+
+ * Setting all symbols on the LCD
+ * A built-in ASCII to 14-segment LCD font converter
+ * Backlight control
+ * Keypad events 
+
+The library does not control the microphone nor the
+speaker of the phone - use the standard Linux ALSA USB
+audio for those services.
+
+License
+-------
+
+This clean-room engineered library is licensed under the LGPL. 
