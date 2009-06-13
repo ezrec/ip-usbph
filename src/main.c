@@ -354,6 +354,10 @@ static int command(struct ip_usbph **pph, int argc, char **argv)
 	struct ip_usbph *ph = *pph;
 	int (*cmd)(struct ip_usbph *ph, int argc, char **argv) = NULL;
 
+	if (argc == 0) {
+		return 0;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
 		if (strcmp(argv[0],cmds[i].name) == 0) {
 			cmd = cmds[i].cmd;
