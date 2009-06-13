@@ -90,7 +90,7 @@ typedef enum {
 /* Keycodes */
 
 #define IP_USBPH_KEY_INVALID	(0)
-#define IP_USBPH_KEY_PRESSED	(1 << 15)
+#define IP_USBPH_KEY_PRESSED	(0x20)
 
 #define IP_USBPH_KEY_1		0x01
 #define IP_USBPH_KEY_2		0x02

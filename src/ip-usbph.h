@@ -73,6 +73,6 @@ int ip_usbph_key_fd(struct ip_usbph *ph);
 
 /* Get keycode and is-up mask for a key.
  */
-uint16_t ip_usbph_key_get(struct ip_usbph *ph);
+uint8_t ip_usbph_key_get(struct ip_usbph *ph);
 
 #endif /* IP_USBPH_H */

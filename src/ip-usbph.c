@@ -593,13 +593,10 @@ int ip_usbph_key_fd(struct ip_usbph *ph)
 	return ph->key_pipe[0];
 }
 
-#define IP_USBPH_KEYCODE        	0x1f
-#define IP_USBPH_KEYCODE_PRESSED	0x20
-
-uint16_t ip_usbph_key_get(struct ip_usbph *ph)
+uint8_t ip_usbph_key_get(struct ip_usbph *ph)
 {
 	uint8_t code;
-	uint16_t key;
+	uint8_t key;
 	int status;
 	int err;
 
@@ -613,11 +610,6 @@ uint16_t ip_usbph_key_get(struct ip_usbph *ph)
 	err = read(ph->key_pipe[0], &code, 1);
 	if (err != 1) {
 		return IP_USBPH_KEY_INVALID;
-	}
-
-	key = code & IP_USBPH_KEYCODE;
-	if (code & IP_USBPH_KEYCODE_PRESSED) {
-		key |= IP_USBPH_KEY_PRESSED;
 	}
 
 	return key;
