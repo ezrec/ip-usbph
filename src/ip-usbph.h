@@ -117,8 +117,6 @@ typedef enum {
 struct ip_usbph *ip_usbph_acquire(int index);
 void ip_usbph_release(struct ip_usbph *ph);
 
-int ip_usbph_init(struct ip_usbph *ph);
-
 /* Save state to a fd
  *
  * Returns length written

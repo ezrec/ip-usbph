@@ -374,7 +374,6 @@ static int command(struct ip_usbph **pph, int argc, char **argv)
 		}
 		*pph = ph;
 
-		ip_usbph_init(ph);
 		rc_load(ph);
 	}
 

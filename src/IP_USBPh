@@ -32,8 +32,6 @@ public:
 	~IP_USBPh(void) {
 		ip_usbph_release(ph);
 	}
-	int init(void)
-		{ return ip_usbph_init(ph); }
 	int backlight(void)
 		{ return ip_usbph_backlight(ph); }
 	int clear(void)

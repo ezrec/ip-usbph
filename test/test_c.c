@@ -123,7 +123,6 @@ int main(int argc, char **argv)
 
 	ph = ip_usbph_acquire(0);
 	assert(ph != NULL);
-	ip_usbph_init(ph);
 
 	ip_usbph_clear(ph);
 	ip_usbph_backlight(ph);

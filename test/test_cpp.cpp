@@ -129,7 +129,6 @@ int main(int argc, char **argv)
 
 	ph = new IP_USBPh(0);
 	assert(ph != NULL);
-	ph->init();
 
 	ph->clear();
 	ph->backlight();
