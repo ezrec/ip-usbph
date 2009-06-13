@@ -1,6 +1,7 @@
 /*
  * Copyright 2008 Jason McMullan <jason.mcmullan@gmail.com>
  *
+ * Licensed under the LGPL v2
  */
 
 #include <stdio.h>

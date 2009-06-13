@@ -1,9 +1,8 @@
 /*
- * $Id$
- *
  * Copyright 2006, Jason McMullan
  * Author: Jason McMullan <jason.mcmullan@gmail.com>
  *
+ * Licensed under the LGPL v2
  */
 #include <ctype.h>
 
