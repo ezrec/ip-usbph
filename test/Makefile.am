@@ -1,3 +1,4 @@
+AM_CFLAGS=-Wall -Werror
 
 noinst_PROGRAMS = test_c test_cpp
 
