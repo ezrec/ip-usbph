@@ -35,6 +35,7 @@
  *  * Valid: 
  *   */
 static const ip_usbph_char font_char[256] = {
+	[' '] = 0,
 	['"'] = _TC | _TR,
 	['#'] = _TC | _TR |
 	        _LC | _RC |

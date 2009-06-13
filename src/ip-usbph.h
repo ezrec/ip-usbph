@@ -13,25 +13,25 @@
 /* Symbols
  */
 typedef enum {
-	IP_USBPH_SYMBOL_DOWN = 1,
-	IP_USBPH_SYMBOL_UP,
-	IP_USBPH_SYMBOL_SAT,
-	IP_USBPH_SYMBOL_COLON,
-	IP_USBPH_SYMBOL_FRI,
-	IP_USBPH_SYMBOL_THU,
-	IP_USBPH_SYMBOL_M_AND_D,
-	IP_USBPH_SYMBOL_TUE,
-	IP_USBPH_SYMBOL_WED,
-	IP_USBPH_SYMBOL_MON,
-	IP_USBPH_SYMBOL_SUN,
-	IP_USBPH_SYMBOL_OUT,
-	IP_USBPH_SYMBOL_IN,
-	IP_USBPH_SYMBOL_NEW,
-	IP_USBPH_SYMBOL_MUTE,
-	IP_USBPH_SYMBOL_LOCK,
-	IP_USBPH_SYMBOL_MAN,
-	IP_USBPH_SYMBOL_BALANCE,
-	IP_USBPH_SYMBOL_DECIMAL,
+	IP_USBPH_SYMBOL_NEW,	/* 'NEW' in upper left */
+	IP_USBPH_SYMBOL_SUN,	/* 'SUN' on top row */
+	IP_USBPH_SYMBOL_MON,	/* 'MON' on top row */
+	IP_USBPH_SYMBOL_TUE,	/* 'TUE' on top row */
+	IP_USBPH_SYMBOL_WED,	/* 'WED' on top row */
+	IP_USBPH_SYMBOL_THU,	/* 'THU' on top row */
+	IP_USBPH_SYMBOL_FRI,	/* 'FRI' on top row */
+	IP_USBPH_SYMBOL_SAT,	/* 'SAT' on top row */
+	IP_USBPH_SYMBOL_IN,	/* 'IN'  (below 'NEW', upper left) */
+	IP_USBPH_SYMBOL_OUT,	/* 'OUT' (below 'IN', upper left) */
+	IP_USBPH_SYMBOL_M_AND_D,/* Month and Day '-' separators, digit row */
+	IP_USBPH_SYMBOL_COLON,	/* Hour/Minute ':' separator, digit row */
+	IP_USBPH_SYMBOL_UP,	/* Arrow up, right of top alpha row */
+	IP_USBPH_SYMBOL_DOWN,	/* Arrow down, right of top alpha row */
+	IP_USBPH_SYMBOL_BALANCE,/* 'Balance', above the bottom alpha row */
+	IP_USBPH_SYMBOL_MAN,	/* Picture of a person, bottom left */
+	IP_USBPH_SYMBOL_LOCK,	/* Picture of a lock, right of person image */
+	IP_USBPH_SYMBOL_MUTE,	/* Mute symbol, right of the lock image */
+	IP_USBPH_SYMBOL_DECIMAL,/* Decimal '.' separator, bottom alpha row */
 } ip_usbph_sym;
 
 /*
@@ -59,7 +59,7 @@ typedef enum {
  *     |           |
  *      -----B-----
  *
- * Digits 1 and 4 are 'entire' segments (representing "1" only)
+ * Digits 0 and 3 are 'entire' segments (representing "1" only)
  *
  *     |
  *     |
@@ -151,12 +151,19 @@ ip_usbph_char  ip_usbph_font_char(uint8_t c);
 
 /*
  * Valid indexes are from 0 to 10.
- * Index 0 and 3 are 'forced ones'
+ * Index 0 and 3 are 'forced ones', and will only display
+ * a space or '1'
  */
+#define IP_USBPH_TOP_DIGITS	11
 int ip_usbph_top_digit(struct ip_usbph *ph, int index, ip_usbph_digit digit);
 
+/*
+ * Valid indexes are from 0 to 7
+ */
+#define IP_USBPH_TOP_CHARS	8
 int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch);
 
+#define IP_USBPH_BOT_CHARS	4
 int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch);
 
 /*
