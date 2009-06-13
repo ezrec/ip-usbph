@@ -52,11 +52,18 @@ static const uint8_t code_set[7][8] = {
 static pid_t key_monitor(struct ip_usbph *ph)
 {
 	pid_t pid;
-	int len;
+	int len, err;
 
-	pipe(ph->key_pipe);
+	err = pipe(ph->key_pipe);
+	if (err < 0) {
+		return (pid_t)-1;
+	}
 
 	pid = fork();
+	if (pid < 0) {
+		return pid;
+	}
+
 	if (pid != 0) {
 		ph->key_pid = pid;
 		return;
@@ -131,7 +138,12 @@ struct ip_usbph *ip_usbph_acquire(int index)
 					assert(ph != NULL);
 					ph->usb = usb;
 					memcpy(ph->code_set, code_set, sizeof(code_set));
-					key_monitor(ph);
+					err = key_monitor(ph);
+					if (err < 0) {
+						usb_close(ph->usb);
+						free(ph);
+						return NULL;
+					}
 					return ph;
 				}
 				index--;
@@ -208,7 +220,12 @@ int ip_usbph_state_load(struct ip_usbph *ph, int fd)
 
 	for (i = 0; i < ARRAY_SIZE(ph->code_set); i++) {
 		for (j = 0; j < ARRAY_SIZE(ph->code_set[i]); j++) {
-			fscanf(ouf, " 0x%hhx", &ph->code_set[i][j]);
+			int count;
+			count = fscanf(ouf, " 0x%hhx", &ph->code_set[i][j]);
+			if (count != 1) {
+				fclose(ouf);
+				return -EINVAL;
+			}
 		}
 	}
 
