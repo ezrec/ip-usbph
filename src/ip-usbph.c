@@ -620,7 +620,6 @@ int ip_usbph_key_fd(struct ip_usbph *ph)
 uint8_t ip_usbph_key_get(struct ip_usbph *ph)
 {
 	uint8_t code;
-	uint8_t key;
 	int status;
 	int err;
 
@@ -636,6 +635,6 @@ uint8_t ip_usbph_key_get(struct ip_usbph *ph)
 		return IP_USBPH_KEY_INVALID;
 	}
 
-	return key;
+	return code;
 }
 	
