@@ -1,0 +1,265 @@
+.\"	IP-USBPH C Library manual pages
+.\"
+.\"	Copyright 2009, Jason S. McMullan <jason.mcmullan@gmail.com>
+.\"
+.\"	Licensed under the LGPL v2.
+.\"
+
+.TH IP_USBPH 3 2009-06-12 "" "IP-USBPH Programmer's Manual"
+
+.SH NAME
+ip_usbph_acquire, ip_usbph_release, ip_usbph_init, ip_usbph_state_save,
+ip_usbph_state_load, ip_usbph_backlight, ip_usbph_clear, ip_usbph_symbol,
+ip_usbph, ip_usbph_font_digit, ip_usbph_font_char, ip_usbph_top_digit,
+ip_usbph_top_char, ip_usbph_bot_char, ip_usbph_flush, ip_usbph_key_fd,
+ip_usbph_key_get \- Kinamax/Sabrent IP-USBPH VoIP phone interface library
+
+.SH SYNOPSIS
+.nf
+.B #include <ip-usbph.h>
+.sp
+.BI "struct ip_usbph *ip_usbph_acquire(int index);"
+.br
+.BI "void ip_usbph_release(struct ip_usbph *ph);"
+.sp
+.BI "int ip_usbph_backlight(struct ip_usbph *ph);"
+.br
+.BI "int ip_usbph_clear(struct ip_usbph *ph);"
+.br
+.BI "int ip_usbph_flush(struct ip_usbph *ph);"
+.sp
+.BI "int ip_usbph_symbol(struct ip_usbph *ph, ip_usbph_sym sym, int is_on);"
+.br
+.BI "ip_usbph_digit ip_usbph_font_digit(uint8_t c);"
+.br
+.BI "ip_usbph_char  ip_usbph_font_char(uint8_t c);"
+.br
+.BI "int ip_usbph_top_digit(struct ip_usbph *ph, int index, ip_usbph_digit digit);"
+.br
+.BI "int ip_usbph_top_char(struct ip_usbph *ph, int index, ip_usbph_char ch);"
+.br
+.BI "int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch);"
+.sp
+.BI "int ip_usbph_key_fd(struct ip_usbph *ph);"
+.br
+.BI "uint8_t ip_usbph_key_get(struct ip_usbph *ph);"
+.sp
+.BI "int ip_usbph_state_save(struct ip_usbph *ph, int fd);"
+.br
+.BI "int ip_usbph_state_load(struct ip_usbph *ph, int fd);"
+.fi
+.SH DESCRIPTION
+
+The
+.BR ip_usbph
+functions provide a C API to the display and keypad of a
+Kinamax/Sabrent IP-USBPH VoIP phone. The speaker and microphone
+of the phone is controlled by the USB ALSA sound kernel drivers,
+and can be controlled by those device interfaces.
+
+.SH "OPENING/CLOSING"
+
+The
+.BR ip_usbph_acquire ()
+function returns a pointer to the \fIindex\fPth IP-USBPH device,
+as enumerated by the operating system. Use the
+\fIstruct ip_usbph *\fP pointer returned for all other accesses.
+.PP
+Use the
+.BR ip_usbph_release ()
+routine to release the device.
+
+.SH "DISPLAY - IMMEDIATE"
+
+The following functions cause an immediate change to the display.
+
+.BR ip_usbph_backlight ()
+will light the backlight of the device for 7 seconds.
+.PP
+.BR ip_usbph_clear ()
+clears the entire display.
+.PP
+.BR ip_ubsph_flush ()
+flushes all buffered display changes to the display.
+
+.SH "DISPLAY - BUFFERED"
+
+For all the following routined, no changes will be written
+to the display until the 
+.BR ip_ubsph_flush ()
+function is called.
+.PP
+The 
+.BR ip_usbph_symbol ()
+function sets or clears a symbol from the display buffer. The valid
+symbols are:
+.sp
+.in +4n
+.nf
+typedef enum {
+        IP_USBPH_SYMBOL_NEW,    // 'NEW' in upper left
+        IP_USBPH_SYMBOL_SUN,    // 'SUN' on top row
+        IP_USBPH_SYMBOL_MON,    // 'MON' on top row
+        IP_USBPH_SYMBOL_TUE,    // 'TUE' on top row
+        IP_USBPH_SYMBOL_WED,    // 'WED' on top row
+        IP_USBPH_SYMBOL_THU,    // 'THU' on top row
+        IP_USBPH_SYMBOL_FRI,    // 'FRI' on top row
+        IP_USBPH_SYMBOL_SAT,    // 'SAT' on top row 
+        IP_USBPH_SYMBOL_IN,     // 'IN'  (below 'NEW', upper left)
+        IP_USBPH_SYMBOL_OUT,    // 'OUT' (below 'IN', upper left) 
+        IP_USBPH_SYMBOL_M_AND_D,// Month and Day '-' separators, digit row
+        IP_USBPH_SYMBOL_COLON,  // Hour/Minute ':' separator, digit row
+        IP_USBPH_SYMBOL_UP,     // Arrow up, right of top alpha row
+        IP_USBPH_SYMBOL_DOWN,   // Arrow down, right of top alpha row
+        IP_USBPH_SYMBOL_BALANCE,// 'Balance', above the bottom alpha row
+        IP_USBPH_SYMBOL_MAN,    // Picture of a person, bottom left
+        IP_USBPH_SYMBOL_LOCK,   // Picture of a lock, right of person image
+        IP_USBPH_SYMBOL_MUTE,   // Mute symbol, right of the lock image
+        IP_USBPH_SYMBOL_DECIMAL,// Decimal '.' separator, bottom alpha row
+} ip_usbph_sym;
+.fi
+.in
+.PP
+The 
+.BR ip_usbph_top_digit ()
+function controls the top digit line. Digits at index 0 and 3 can only display
+a '1' or an empty space. 
+.PP
+The 
+.BR IP_USBPH_SYMBOL_M_AND_D
+symbol is between indexes 4 and 5, and between 6 and 7. The
+.BR IP_USBPH_SYMBOL_COLON
+symbol is between indexes 8 and 9.
+.PP
+The \fIip_ubsph_digit\fP mask is made up of a logical
+OR of 
+.BR IP_USBPH_SEG_???
+flags, corresponding to the following segments below.
+.PP
+.sp
+.in +4n
+.nf
+ Digit segments         Digit 0 and 3 segments
+ 
+    -----T----- 
+   |           |                  |
+   TL          TR                 |
+   |           |                  |
+    -----M-----                   E
+   |           |                  |
+  BL          BR                  |
+   |           |                  |
+    -----B-----
+.fi
+.in
+.sp
+The
+.BR ip_usbph_font_digit ()
+convenience function maps the ASCII characters '0' - '9' to segment
+bitmasks.
+.PP
+The 
+.BR ip_usbph_top_char ()
+and
+.BR ip_usbph_bot_char ()
+functions control the top and bottom alphanumeric lines. 
+.PP
+The top line has a maximum of 7 characters, and the bottom has
+a maximum of 4. The
+.BR IP_USBPH_SYMBOL_DECIMAL
+symbol is between indexes 2 and 3 on the bottom line.
+.PP
+The \fIip_ubsph_char\fP mask is made up of a logical
+OR of 
+.BR IP_USBPH_SEG_???
+flags, corresponding to the following segments.
+.sp
+.in +4n
+.nf
+Character segments.
+
+    ------T------
+   | \    |    / |
+  TL TLX TC  TRX TR
+   |    \ | /    |
+    --LC-- --RC--
+   |    / | \    |
+  BL BLX BC  BRX BR
+   | /    |    \ |
+    ------B------
+.fi
+.in
+.PP
+The
+.BR ip_usbph_font_char ()
+convenience function maps the ASCII characters '0'-'9', 'a'-'z',
+ 'A'-'Z', and the symbols #"$%'*+`-/<=>\\^_| to
+bitmasks.
+
+.SH "KEYPAD INPUT"
+
+When opened, the IP-USBPH library creates a 
+.BR pipe (2)
+file descriptor for each device,
+that buffers the keystrokes for the application.
+.PP
+To determine if a keystroke is available, use the 
+.BR poll (2)
+or
+.BR select (2)
+system call on the file descriptor returned by
+.BR ip_usbph_key_fd ().
+.PP
+To read the key, once it is available, use the
+.BR ip_usbph_key_get ()
+function. Please note, this is a blocking function,
+and will not return until a key is available in the
+pipe.
+.PP
+Keycodes returned are from 1 to 31, and are ORed with
+0x20 when the key is depressed, and simply 1 - 31
+when the key is released. A keycode of 0 indicates
+an error with the key buffer.
+.PP
+Keycodes are as follows:
+.in +4n
+.nf
+#define IP_USBPH_KEY_INVALID    (0)
+#define IP_USBPH_KEY_PRESSED    (0x20)
+
+#define IP_USBPH_KEY_1          0x01
+#define IP_USBPH_KEY_2          0x02
+#define IP_USBPH_KEY_3          0x03
+#define IP_USBPH_KEY_VOL_UP     0x04
+#define IP_USBPH_KEY_4          0x05
+#define IP_USBPH_KEY_5          0x06
+#define IP_USBPH_KEY_6          0x07
+#define IP_USBPH_KEY_7          0x09
+#define IP_USBPH_KEY_VOL_DOWN   0x08
+#define IP_USBPH_KEY_8          0x0a
+#define IP_USBPH_KEY_9          0x0b
+#define IP_USBPH_KEY_ASTERISK   0x0c
+#define IP_USBPH_KEY_0          0x0e
+#define IP_USBPH_KEY_HASH       0x0f
+#define IP_USBPH_KEY_S          0x10
+#define IP_USBPH_KEY_UP         0x11
+#define IP_USBPH_KEY_DOWN       0x12
+#define IP_USBPH_KEY_NO         0x13
+#define IP_USBPH_KEY_YES        0x14
+#define IP_USBPH_KEY_C          0x15
+.fi
+.in
+
+.SH "SAVE/RESTORE STATE"
+
+Use the
+.BR ip_usbph_state_save ()
+and
+.BR ip_usbph_state_load ()
+routines to save and load the state of the IP-USBPH device as
+an ASCII stream of 56 "0xHH" hex bytes, whitespace separated.
+
+.SH COLOPHON
+For more information, please see 
+.br
+.BR http://www.evillabs.net/wiki/index.php/Project_ip-usbph

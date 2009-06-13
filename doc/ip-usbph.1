@@ -1,0 +1,54 @@
+.\"	IP-USBPH C Library manual pages
+.\"
+.\"	Copyright 2009, Jason S. McMullan <jason.mcmullan@gmail.com>
+.\"
+.\"	Licensed under the LGPL v2.
+.\"
+
+.TH IP-USBPH 1 2009-06-12 "" "IP-USBPH Tools Manual"
+
+.SH NAME
+ip-usbph \- Kinamax/Sabrent IP-USBPH VoIP phone display and key utility
+
+.SH SYNOPSIS
+.B ip-usbph
+\fICOMMAND\fR [\fIOPTION\fR]...
+
+.SH DESCRIPTION
+
+The
+.BR ip-usbph
+utility allows shell access to the display and keypad of a
+Kinamax/Sabrent IP-USBPH VoIP phone. The speaker and microphone
+of the phone is controlled by the USB ALSA sound kernel drivers,
+and can be controlled by those device interfaces.
+.PP
+The 
+commands are as follows:
+.sp
+.in +4n
+.nf
+backlight                 Turn the backlight on for 7 seconds
+clear                     Clear the display
+symbols                   List all symbols
+symbol <name> on|off      Turn on/off a symbol
+digit <digits>            Display up to 11 digits.
+top <string>              Display up to 7 top line characters.
+bot <string>              Display up to 4 bottom line characters.
+key [timeout]             Wait for a keystroke, timeout in msec
+keys                      List all key names
+shell                     Shell mode
+pipe                      Pipe mode
+.fi
+.in
+
+.SH BUGS
+
+The 
+.BR ip-usbph
+utility will only communicate with the first IP-USBPH device found.
+
+.SH COLOPHON
+For more information, please see 
+.br
+.BR http://www.evillabs.net/wiki/index.php/Project_ip-usbph
