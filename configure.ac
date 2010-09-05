@@ -3,9 +3,10 @@
 
 AC_PREREQ(2.61)
 AC_INIT(libip-usbph, 0.1, jason.mcmullan@gmail.com)
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_SRCDIR([src/ip-usbph-font.c])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 AC_PROG_CC
