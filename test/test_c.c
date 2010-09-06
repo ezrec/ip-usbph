@@ -120,6 +120,7 @@ int main(int argc, char **argv)
 	uint8_t cmd[8] = { 0 };
 	uint64_t shifty = 0;
 	int fd, err;
+	int zeros = 0;
 
 	ph = ip_usbph_acquire(0);
 	assert(ph != NULL);
@@ -135,43 +136,32 @@ int main(int argc, char **argv)
 
 	bot_char_test(ph);
 
-	fd = ip_usbph_key_fd(ph);
-	if (fd < 0) {
-		printf("Could not talk to the phone's keypad. Skipping keypad test.\n");
-	} else {
-		struct pollfd fds[1] = {
-			{ .fd = fd, .events = POLLIN | POLLERR }
-		};
-		int zeros = 0;
+	printf("Press some keys. Press \"000\" to exit.\n");
 
-		printf("Press some keys. Press \"000\" to exit.\n");
+	for (;;) {
+		uint8_t key;
 
-		while ((err = poll(fds, 1, -1)) == 1) {
-			uint16_t key;
+		key = ip_usbph_key_get(ph, 1);
+		if (key == IP_USBPH_KEY_IDLE)
+			continue;
 
-			if (fds[0].revents & POLLERR) {
-				break;
+		if (key == IP_USBPH_KEY_ERROR) {
+			printf("Crap. We broke the keypad support.\n");
+			break;
+		}
+
+		printf("Key: %s (%s)\n", keymap[key & 0x1f], (key & IP_USBPH_KEY_PRESSED) ? "Down" : "Up");
+
+		if ((key & IP_USBPH_KEY_PRESSED) == 0) {
+			if (key == IP_USBPH_KEY_0) {
+				zeros++;
+			} else {
+				zeros = 0;
 			}
+		}
 
-			key = ip_usbph_key_get(ph);
-			if (key == IP_USBPH_KEY_INVALID) {
-				printf("Crap. We broke the keypad support.\n");
-				break;
-			}
-
-			printf("Key: %s (%s)\n", keymap[key & 0x1f], (key & IP_USBPH_KEY_PRESSED) ? "Down" : "Up");
-
-			if ((key & IP_USBPH_KEY_PRESSED) == 0) {
-				if (key == IP_USBPH_KEY_0) {
-					zeros++;
-				} else {
-					zeros = 0;
-				}
-			}
-
-			if (zeros == 3) {
-				break;
-			}
+		if (zeros == 3) {
+			break;
 		}
 	}
 

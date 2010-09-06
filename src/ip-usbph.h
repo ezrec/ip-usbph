@@ -90,7 +90,8 @@ typedef enum {
 
 /* Keycodes */
 
-#define IP_USBPH_KEY_INVALID	(0)
+#define IP_USBPH_KEY_IDLE	(0x00)
+#define IP_USBPH_KEY_ERROR	(0xff)
 #define IP_USBPH_KEY_PRESSED	(0x20)
 
 #define IP_USBPH_KEY_1		0x01
@@ -171,14 +172,8 @@ int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch);
  */
 int ip_usbph_flush(struct ip_usbph *ph);
 
-/*
- * Get the file descriptor to poll for
- * this phone device.
- */
-int ip_usbph_key_fd(struct ip_usbph *ph);
-
 /* Get keycode and is-up mask for a key.
  */
-uint8_t ip_usbph_key_get(struct ip_usbph *ph);
+uint8_t ip_usbph_key_get(struct ip_usbph *ph, int timeout_sec);
 
 #endif /* IP_USBPH_H */

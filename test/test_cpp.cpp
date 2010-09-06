@@ -37,7 +37,7 @@ const static struct {
 	{ IP_USBPH_KEY_C, "C" },
 	{ IP_USBPH_KEY_ASTERISK, "*" },
 	{ IP_USBPH_KEY_HASH, "#" },
-	{ IP_USBPH_KEY_INVALID, "Invalid" },
+	{ IP_USBPH_KEY_ERROR, "ERROR!" },
 };
 
 void symbol_test(IP_USBPh *ph)
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 	char buff[1024];
 	uint8_t cmd[8] = { 0 };
 	uint64_t shifty = 0;
-	int fd, err;
+	int zeros = 0;
 
 	ph = new IP_USBPh(0);
 	assert(ph != NULL);
@@ -141,48 +141,37 @@ int main(int argc, char **argv)
 
 	bot_char_test(ph);
 
-	fd = ph->key_fd();
-	if (fd < 0) {
-		printf("Could not talk to the phone's keypad. Skipping keypad test.\n");
-	} else {
-		struct pollfd fds[1] = {
-			{ fd, POLLIN | POLLERR, 0 }
-		};
-		int zeros = 0;
+	printf("Press some keys. Press \"000\" to exit.\n");
 
-		printf("Press some keys. Press \"000\" to exit.\n");
+	for (;;) {
+		uint8_t key;
+		int i;
 
-		while ((err = poll(fds, 1, -1)) == 1) {
-			uint16_t key;
-			int i;
+		key = ph->key_get(1);
+		if (key == IP_USBPH_KEY_IDLE)
+			continue;
 
-			if (fds[0].revents & POLLERR) {
+		if (key == IP_USBPH_KEY_ERROR) {
+			printf("Crap. We broke the keypad support.\n");
+			break;
+		}
+
+		for (i = 0; keymap[i].key != IP_USBPH_KEY_ERROR; i++) {
+			if (keymap[i].key == (key & 0x1f))
 				break;
-			}
+		}
+		printf("Key: %s (%s)\n", keymap[i].value, (key & IP_USBPH_KEY_PRESSED) ? "Down" : "Up");
 
-			key = ph->key_get();
-			if (key == IP_USBPH_KEY_INVALID) {
-				printf("Crap. We broke the keypad support.\n");
-				break;
+		if ((key & IP_USBPH_KEY_PRESSED) == 0) {
+			if (key == IP_USBPH_KEY_0) {
+				zeros++;
+			} else {
+				zeros = 0;
 			}
+		}
 
-			for (i = 0; keymap[i].key != IP_USBPH_KEY_INVALID; i++) {
-				if (keymap[i].key == (key & 0x1f))
-					break;
-			}
-			printf("Key: %s (%s)\n", keymap[i].value, (key & IP_USBPH_KEY_PRESSED) ? "Down" : "Up");
-
-			if ((key & IP_USBPH_KEY_PRESSED) == 0) {
-				if (key == IP_USBPH_KEY_0) {
-					zeros++;
-				} else {
-					zeros = 0;
-				}
-			}
-
-			if (zeros == 3) {
-				break;
-			}
+		if (zeros == 3) {
+			break;
 		}
 	}
 

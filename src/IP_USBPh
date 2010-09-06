@@ -50,8 +50,6 @@ public:
 		{ return ip_usbph_bot_char(ph, index, ch); }
 	int flush(void)
 		{ return ip_usbph_flush(ph); }
-	int key_fd(void)
-		{ return ip_usbph_key_fd(ph); }
-	uint8_t key_get(void)
-		{ return ip_usbph_key_get(ph); }
+	uint8_t key_get(int timeout_sec)
+		{ return ip_usbph_key_get(ph, timeout_sec); }
 };

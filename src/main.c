@@ -224,9 +224,8 @@ static int cmd_keys(struct ip_usbph *ph, int argc, char **argv)
 
 static int cmd_key(struct ip_usbph *ph, int argc, char **argv)
 {
-	struct pollfd fds[1];
-	int err, fd;
 	int timeout = -1;
+	uint8_t key;
 
 	if (argc > 2) {
 		return -EINVAL;
@@ -236,26 +235,9 @@ static int cmd_key(struct ip_usbph *ph, int argc, char **argv)
 		timeout = strtol(argv[1], NULL, 0);
 	}
 
-	fd = ip_usbph_key_fd(ph);
-	if (fd < 0) {
-		return fd;
-	}
-
-	fds[0].fd = fd;
-	fds[0].events = POLLIN | POLLERR;
-	fds[0].revents = 0;
-
-	while ((err = poll(fds, 1, timeout)) == 1) {
-		uint16_t key;
-
-		if (fds[0].revents & POLLERR) {
-			break;
-		}
-
-		key = ip_usbph_key_get(ph);
-		if (key == IP_USBPH_KEY_INVALID) {
-			break;
-		}
+	while ((key = ip_usbph_key_get(ph, timeout)) != IP_USBPH_KEY_ERROR) {
+		if (key == IP_USBPH_KEY_IDLE)
+			continue;
 
 		if ((key & IP_USBPH_KEY_PRESSED) != 0) {
 			printf("%s\n", keymap[key & 0x1f]);
@@ -264,9 +246,9 @@ static int cmd_key(struct ip_usbph *ph, int argc, char **argv)
 		}
 	}
 
-	printf("\n");
+	printf("KEY: IO error\n");
 	fflush(stdout);
-	return 0;
+	return -EIO;
 }
 
 static int cmd_clear(struct ip_usbph *ph, int argc, char **argv)

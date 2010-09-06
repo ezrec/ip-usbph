@@ -16,7 +16,7 @@ AC_PROG_CPP
 AC_PROG_LIBTOOL
 
 # Checks for libraries.
-PKG_CHECK_MODULES([IP_USBPH],[libusb])
+PKG_CHECK_MODULES([USB],[libusb-1.0])
 
 # Checks for header files.
 AC_HEADER_STDC

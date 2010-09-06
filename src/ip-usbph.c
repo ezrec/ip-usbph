@@ -11,9 +11,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <usb.h>
 #include <signal.h>
+#include <malloc.h>
 
+#include <libusb.h>
 #include <sys/wait.h>
 
 #include "ip-usbph.h"
@@ -21,9 +22,8 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 struct ip_usbph {
-	usb_dev_handle *usb;
-	int key_pipe[2];
-	pid_t key_pid;
+	libusb_context *usb_context;
+	libusb_device_handle *usb;
 	unsigned code_mask;
 	uint8_t code_set[7][8];
 };
@@ -51,115 +51,80 @@ static const uint8_t code_set[7][8] = {
 
 static int ip_usbph_init(struct ip_usbph *ph);
 
-static pid_t key_monitor(struct ip_usbph *ph)
-{
-	pid_t pid;
-	int len, err;
-
-	err = pipe(ph->key_pipe);
-	if (err < 0) {
-		return (pid_t)-1;
-	}
-
-	pid = fork();
-	if (pid < 0) {
-		return pid;
-	}
-
-	if (pid != 0) {
-		ph->key_pid = pid;
-		return;
-	}
-
-	/* In forked task */
-	for (;;) {
-		int len;
-		uint8_t report[8];
-		
-		len = usb_interrupt_read(ph->usb, 0x81, report, sizeof(report), 0);
-		if (len < 0 || len != sizeof(report)) {
-			if (len == -EAGAIN) {
-				continue;
-			}
-			exit(EXIT_FAILURE);
-		}
-
-		if (report[0] != 0x02 ||
-		    report[1] != 0x61 ||
-		    report[2] != 0x90) {
-		    	/* Skip over non-key reports */
-		    	continue;
-		}
-
-		len = write(ph->key_pipe[1], &report[3], 1);
-		if (len != 1) {
-			fprintf(stderr,"ip-usbph: Key monitor got back %d writing to the pipe (%s).\n", len, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-}
-
 struct ip_usbph *ip_usbph_acquire(int index)
 {
-	struct usb_bus *busses, *bus;
+	libusb_context *usb_context;
+	libusb_device **usb_list;
+	libusb_device_handle *usb;
 	struct ip_usbph *ph;
-	int err;
+	int err, i;
+	ssize_t usb_devices;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	err = libusb_init(&usb_context);
+	if (err < 0)
+		return NULL;
 
-	busses = usb_get_busses();
+	usb_devices = libusb_get_device_list(usb_context, &usb_list);
 
-	for (bus = busses; bus != NULL; bus = bus->next) {
-		struct usb_device *dev;
-		struct usb_dev_handle *usb;
+	ph = NULL;
+	for (i = 0; i < usb_devices; i++) {
+		struct libusb_device_descriptor desc;
 
-		for (dev = bus->devices; dev != NULL; dev = dev->next) {
-			if (dev->descriptor.idVendor == 0x04d9 && 
-				dev->descriptor.idProduct == 0x0602 &&
-				dev->descriptor.iManufacturer == 1 &&
-				dev->descriptor.iProduct == 2 &&
-				dev->descriptor.iSerialNumber == 0 &&
-				dev->descriptor.bNumConfigurations == 1) {
+		err = libusb_get_device_descriptor(usb_list[i], &desc);
+		if (err < 0)
+			continue;
 
-				usb = usb_open(dev);
-				if (usb == NULL) {
-					fprintf(stderr, "Can't open IP-USBPH device: %s\n", usb_strerror());
-					continue;
-				}
-				if (index <= 0) {
-					err = usb_clear_halt(usb, 3);
-					err = usb_detach_kernel_driver_np(usb, 3);
-					err = usb_claim_interface(usb, 3);
-					if (err < 0) {
-						usb_close(usb);
-						return NULL;
-					}
-					ph = calloc(1, sizeof(*ph));
-					assert(ph != NULL);
-					ph->usb = usb;
-					memcpy(ph->code_set, code_set, sizeof(code_set));
-					err = ip_usbph_init(ph);
-					if (err < 0) {
-						usb_close(ph->usb);
-						free(ph);
-						return NULL;
-					}
-					err = key_monitor(ph);
-					if (err < 0) {
-						usb_close(ph->usb);
-						free(ph);
-						return NULL;
-					}
-					return ph;
-				}
-				index--;
+		if (desc.idVendor == 0x04d9 &&
+		    desc.idProduct == 0x0602 &&
+		    desc.iManufacturer == 1 &&
+		    desc.iProduct == 2 &&
+		    desc.iSerialNumber == 0 &&
+		    desc.bNumConfigurations == 1) {
+		    	if (index > 0) {
+		    		index--;
+		    		continue;
+		    	}
+		    
+		    	err = libusb_open(usb_list[i], &usb);
+		    	if (err < 0)
+		    		continue;
+
+		    	err = libusb_claim_interface(usb, 3);
+		    	if (err < 0) {
+		    		libusb_close(usb);
+		    		continue;
+		    	}
+
+		    	err = libusb_detach_kernel_driver(usb, 3);
+		    	if (err < 0 && errno != ENODATA) {
+		    		libusb_close(usb);
+		    		continue;
+		    	}
+
+		    	err = libusb_clear_halt(usb, 3);
+		    	if (err < 0 && errno != ENOENT) {
+		    		libusb_close(usb);
+		    		continue;
+		    	}
+
+			ph = calloc(1, sizeof(*ph));
+			assert(ph != NULL);
+			ph->usb = usb;
+			ph->usb_context = usb_context;
+			memcpy(ph->code_set, code_set, sizeof(code_set));
+			err = ip_usbph_init(ph);
+			if (err < 0) {
+				libusb_close(ph->usb);
+				free(ph);
+				ph = NULL;
 			}
+			break;
 		}
 	}
 
-	return NULL;
+	libusb_free_device_list(usb_list, 1);
+
+	return ph;
 }
 
 void ip_usbph_release(struct ip_usbph *ph)
@@ -167,17 +132,17 @@ void ip_usbph_release(struct ip_usbph *ph)
 	assert(ph != NULL);
 	assert(ph->usb != NULL);
 
-	kill(ph->key_pid, SIGTERM);
-	usb_close(ph->usb);
+	libusb_close(ph->usb);
+	libusb_exit(ph->usb_context);
 	free(ph);
 }
 
 static int ip_usbph_raw(struct ip_usbph *ph, const uint8_t cmd[8])
 {
 	int err;
-	err = usb_control_msg(ph->usb, 
-	                      USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-	                      USB_REQ_SET_CONFIGURATION,
+	err = libusb_control_transfer(ph->usb, 
+	                      LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE,
+	                      LIBUSB_REQUEST_SET_CONFIGURATION,
 	                      0x202,
 	                      0x03,
 	                      (uint8_t *)cmd, 8, 0);
@@ -612,29 +577,30 @@ int ip_usbph_bot_char(struct ip_usbph *ph, int index, ip_usbph_char ch)
 	return 0;
 }
 
-int ip_usbph_key_fd(struct ip_usbph *ph)
-{
-	return ph->key_pipe[0];
-}
-
-uint8_t ip_usbph_key_get(struct ip_usbph *ph)
+uint8_t ip_usbph_key_get(struct ip_usbph *ph, int timeout_msec)
 {
 	uint8_t code;
 	int status;
 	int err;
+	int len;
+	uint8_t report[8];
+		
+	err = libusb_interrupt_transfer(ph->usb, 0x81, report, sizeof(report), &len, timeout_msec);
+	if (err == LIBUSB_ERROR_TIMEOUT)
+		return IP_USBPH_KEY_IDLE;
 
-	if (waitpid(ph->key_pid, &status, WNOHANG) == ph->key_pid) {
-		if (WIFEXITED(status) || WIFSIGNALED(status)) {
-			fprintf(stderr, "ip-usbph: Key monitor killed.\n");
-			exit(EXIT_FAILURE);
-		}
+	if (err < 0)
+		return IP_USBPH_KEY_ERROR;
+
+	/* Skip over non-key reports */
+	if (len != sizeof(report))
+		return IP_USBPH_KEY_IDLE;
+
+	if (report[0] != 0x02 ||
+	    report[1] != 0x61 ||
+	    report[2] != 0x90) {
+	    	return IP_USBPH_KEY_IDLE;
 	}
 
-	err = read(ph->key_pipe[0], &code, 1);
-	if (err != 1) {
-		return IP_USBPH_KEY_INVALID;
-	}
-
-	return code;
+	return report[3];
 }
-	
