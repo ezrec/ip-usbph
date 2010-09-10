@@ -89,20 +89,14 @@ struct ip_usbph *ip_usbph_acquire(int index)
 		    	if (err < 0)
 		    		continue;
 
-		    	err = libusb_claim_interface(usb, 3);
-		    	if (err < 0) {
-		    		libusb_close(usb);
-		    		continue;
-		    	}
-
 		    	err = libusb_detach_kernel_driver(usb, 3);
 		    	if (err < 0 && errno != ENODATA) {
 		    		libusb_close(usb);
 		    		continue;
 		    	}
 
-		    	err = libusb_clear_halt(usb, 3);
-		    	if (err < 0 && errno != ENOENT) {
+		    	err = libusb_claim_interface(usb, 3);
+		    	if (err < 0) {
 		    		libusb_close(usb);
 		    		continue;
 		    	}
